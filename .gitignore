@@ -1,0 +1,7 @@
+*.swp
+*.swo
+.DS_Store
+data/w2v.mdl
+data/w2v.mdl.syn1neg.npy
+data/w2v.mdl.wv.syn0.npy
+
