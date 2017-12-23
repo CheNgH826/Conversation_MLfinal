@@ -3,6 +3,7 @@ import numpy as np
 import constants
 import jieba
 import os
+assert os
 
 
 nb_vocab = constants.VOCAB_LIST_SIZE
@@ -86,13 +87,14 @@ def pad_sentence(sentence,vocab_dict):
 
 
 if __name__ == '__main__':
-	d = load_data('data/training_data/1_train.txt')
-	e = load_data('data/training_data/2_train.txt')
-	f = load_data('data/training_data/3_train.txt')
-	g = load_data('data/training_data/4_train.txt')
-	h = load_data('data/training_data/5_train.txt')
+        d = load_data('../data/training_data/1_train.txt')
+        print(d)
+        e = load_data('../data/training_data/2_train.txt')
+        f = load_data('../data/training_data/3_train.txt')
+        g = load_data('../data/training_data/4_train.txt')
+        h = load_data('../data/training_data/5_train.txt')
 
-	a = list(d)+list(e)+list(f)+list(g)+list(h)
+        a = list(d)+list(e)+list(f)+list(g)+list(h)
 	
 	#print (len(e))
 	#print (len(f))
@@ -100,13 +102,13 @@ if __name__ == '__main__':
 	#print (len(h))
 	#print (len(a))
 
-	m,n = gen_vocab_list('vocab.txt',a,rewrite = False)
+        m,n = gen_vocab_list('vocab.txt',a,rewrite = False)
 	
-	sentence = pad_sentence(d[0],m)
-	print ("Example pad")
-	print (sentence)
-	#sentence = np.array(to_categorical(sentence,num_classes = 10000))
-	print (np.array(sentence).shape)
+        sentence = pad_sentence(d[0],m)
+        print ("Example pad")
+        print (sentence)
+        #sentence = np.array(to_categorical(sentence,num_classes = 10000))
+        print (np.array(sentence).shape)
 	#print (n[4766],n[17],n[5052])
 	#preprocess(d,m)
 	#print (m)

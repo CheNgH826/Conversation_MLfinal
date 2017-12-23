@@ -21,7 +21,7 @@ class   Vocabulary:
 class   DataManager:
     def __init__(self):
         self.data={}
-        self.word_dim=400
+        self.word_dim=300
         self.word_len=13
     def read_train_data(self,path,name):
         with open(path, 'r') as f:
@@ -56,6 +56,7 @@ class   DataManager:
                 for w in seg:
                     if (len(vec_list)>=13):break
                     elif w in voc.W2V:
+                        #print(voc.W2V[w].shape)
                         vec_list.append(voc.W2V[w])
                 if (len(vec_list)<13):
                     for i in range(13-len(vec_list)):
@@ -85,7 +86,20 @@ class   DataManager:
             self.data[name]=opt_vec
             print(name,opt_vec.shape)
             np.save(outputfile,opt_vec)
-    def construct(self,unit=128):
+    def wrape_decoder(self,data,voc,decode_in=True):
+        res=[]
+        for i in range(len(data)):
+            print('\rprocessing sequence number: '+str(i),end='')
+            if (len(data[i])==0): continue
+            if (decode_in):
+                data[i]=np.array(data[i])
+                res.append(np.concatenate((voc.W2V['<BOS>'].reshape((1,-1)),data[i]),axis=0))
+            else:
+                data[i]=np.array(data[i])
+                res.append(np.concatenate((data[i],voc.W2V['<EOS>'].reshape((1,-1))),axis=0))
+        print('\rprocess finish...')
+        return np.array(res)
+    def construct_LSTM(self,unit=128):
         sequence_in= Input(shape=(self.word_len,self.word_dim), name='sequence_in')
         x=Bidirectional(LSTM(unit//2,activation='sigmoid',return_sequences=True,init='glorot_normal',inner_init='glorot_normal'))(sequence_in)
         for i in range(3):
@@ -93,6 +107,28 @@ class   DataManager:
         x=TimeDistributed(Dense(unit,activation='relu'))(x)
         main_output=TimeDistributed(Dense(self.word_dim,activation='softmax'),name='main_output')(x)
         model=Model(inputs=sequence_in,outputs=main_output)
+        return model
+    def construct_seq2seq(self,unit=128):
+        # Define an input sequence and process it.
+        encoder_inputs = Input(shape=(None, self.word_dim))
+        encoder = LSTM(unit, return_state=True)
+        encoder_outputs, state_h, state_c = encoder(encoder_inputs)
+        # We discard `encoder_outputs` and only keep the states.
+        encoder_states = [state_h, state_c]
+
+        # Set up the decoder, using `encoder_states` as initial state.
+        decoder_inputs = Input(shape=(None, self.word_dim))
+        # We set up our decoder to return full output sequences,
+        # and to return internal states as well. We don't use the 
+        # return states in the training model, but we will use them in inference.
+        decoder_lstm = LSTM(unit, return_sequences=True, return_state=True)
+        decoder_outputs, _, _ = decoder_lstm(decoder_inputs,initial_state=encoder_states)
+        decoder_dense = Dense(self.word_dim, activation='softmax')
+        decoder_outputs = decoder_dense(decoder_outputs)
+        # Define the model that will turn
+        # `encoder_input_data` & `decoder_input_data` into `decoder_target_data`
+        model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+
         return model
     def average(self,data):
         return np.mean(data,axis=0)
@@ -112,7 +148,4 @@ class   DataManager:
         #print(output.shape)
         myoutput=pd.DataFrame(test,columns=["id","ans"])
         myoutput.to_csv(path,index=False)
-
-
-            
 
