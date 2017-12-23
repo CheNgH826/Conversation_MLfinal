@@ -14,6 +14,6 @@ for one_corpus in corpus:
             sen_word_list = list(jieba.cut(sen))
             sen_list.append(list(sen_word_list))
 
-WORDVEC_DIM = 100
-w2v_model = Word2Vec(sen_list, min_count=1, size=WORDVEC_DIM, iter=20) 
-w2v_model.save('w2v_model')
+WORDVEC_DIM = 400
+w2v_model = Word2Vec(sen_list, min_count=10, size=WORDVEC_DIM, iter=20) 
+w2v_model.save('data/w2v_model')
