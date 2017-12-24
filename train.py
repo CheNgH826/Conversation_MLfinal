@@ -19,7 +19,10 @@ assert jieba and np
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''''''''''''''''''''       setting option                           '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-n_batch=4096
+n_batch=1024
+n_epoch=30
+max_word_len=13
+word_dim=300
 adam=keras.optimizers.Adam(clipnorm=0.0001)
 adamax=keras.optimizers.Adamax(clipnorm=0.0001)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -27,6 +30,8 @@ adamax=keras.optimizers.Adamax(clipnorm=0.0001)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 dm =DataManager()
 voc=Vocabulary()
+dm.word_dim=word_dim
+dm.word_len=max_word_len
 
 voc.word2vec('data/w2v_model')
 
@@ -54,7 +59,7 @@ dm.construct_data_LSTM('test_question',voc,'data/test_question.npy')
 dm.construct_data_LSTM('test_option',voc,'data/test_option.npy',multi_seq=True)
 print("\rconstruct data...finish")
 
-model=dm.construct_LSTM()
+model=dm.construct_LSTM(256)
 
 print(dm.data['test_option'].shape)
 print(dm.data['test_option'][0,1,:,:].shape)
@@ -82,7 +87,7 @@ train_x=np.concatenate((dm.data['train1'][:-1],dm.data['train2'][:-1],dm.data['t
 train_y=np.concatenate((dm.data['train1'][1:],dm.data['train2'][1:],dm.data['train3'][1:],dm.data['train4'][1:],dm.data['train5'][1:]))
 print(train_x.shape)
 print(train_y.shape)
-model.fit({'sequence_in':train_x},{'main_output':train_y},epochs=100,batch_size=n_batch,shuffle=True,validation_split=0.05,callbacks=callbacks_list,verbose=1)
+model.fit({'sequence_in':train_x},{'main_output':train_y},epochs=n_epoch,batch_size=n_batch,shuffle=True,validation_split=0.05,callbacks=callbacks_list,verbose=1)
 '''
 '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
