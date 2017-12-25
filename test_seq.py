@@ -48,9 +48,9 @@ print("\rreading data...finish")
 print(dm.data['test_question'][:6])
 
 print("construct data...")
-dm.construct_data_seq2seq('train1',voc,'data/train1_seq.npy')
-dm.construct_data_seq2seq('test_question',voc,'data/test_question_seq.npy')
-dm.construct_data_seq2seq('test_option',voc,'data/test_option_seq.npy',multi_seq=True)
+dm.construct_data_seq2seq('train1',voc,'data/train1.npy')
+dm.construct_data_seq2seq('test_question',voc,'data/test_question.npy')
+dm.construct_data_seq2seq('test_option',voc,'data/test_option.npy',multi_seq=True)
 print("construct data...finish")
 print('test_question_seq.shape: '+str(dm.data['test_question'].shape))
 print('test_option.shape: '+str(dm.data['test_option'].shape))
@@ -70,7 +70,8 @@ data_in=dm.wrape_encoder(dm.data['test_question'],voc)
 print(data_in.shape)
 test_model=dm.construct_seq2seq_test(model,1024)
 data_out=[]
-for i in range(len(data_in)):
+#for i in range(len(data_in)):
+for i in range(6):
     print('\rdecoding... sequence: '+str(i),end='')
     data_out.append(dm.decode_seq(data_in[i].reshape((1,14,300)),test_model,voc))
 data_out=np.array(data_out)
@@ -79,7 +80,7 @@ data_out=np.array(data_out)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''
 '''
-output=dm.output(data_in)
+output=dm.output(data_out)
 dm.write(output,'./output_seq2seq.csv')
 '''
 '''

@@ -1,3 +1,5 @@
+
+import keras.backend as K
 import jieba
 from gensim.models import Word2Vec
 import numpy as np
@@ -167,23 +169,23 @@ class   DataManager:
         return model
     def construct_seq2seq_train(self,unit=256):
         # Define an input sequence and process it.
-        encoder_inputs = Input(shape=(None, self.word_dim))
-        encoder_lstm=LSTM(unit, return_sequences=True)(encoder_inputs)
-        encoder =LSTM(unit, return_state=True)
+        encoder_inputs = Input(shape=(None, self.word_dim),name='encoder_in')
+        encoder_lstm=LSTM(unit, return_sequences=True,name='encoder_lstm')(encoder_inputs)
+        encoder =LSTM(unit, return_state=True,name='encoder_out')
         encoder_outputs, state_h, state_c = encoder(encoder_lstm)
         # We discard `encoder_outputs` and only keep the states.
         encoder_states = [state_h, state_c]
 
         # Set up the decoder, using `encoder_states` as initial state.
-        decoder_inputs = Input(shape=(None, self.word_dim))
+        decoder_inputs = Input(shape=(None, self.word_dim),name='decoder_in')
         # We set up our decoder to return full output sequences,
         # and to return internal states as well. We don't use the 
         # return states in the training model, but we will use them in inference.
-        decoder_lstm = LSTM(unit, return_sequences=True)(decoder_inputs)
-        decoder= LSTM(unit, return_sequences=True, return_state=True)
+        decoder_lstm , _,_ = LSTM(unit, return_sequences=True,return_state=True,name='decoder_lstm')(decoder_inputs,initial_state=encoder_states)
+        decoder= LSTM(unit, return_sequences=True, return_state=True,name='decoder_out')
         decoder_outputs, _, _ = decoder(decoder_lstm,initial_state=encoder_states)
-        decoder_outputs= Dense(unit, activation='relu')(decoder_outputs)
-        decoder_dense = Dense(self.word_dim, activation='linear')
+        decoder_outputs= Dense(unit, activation='relu',name='dense_1')(decoder_outputs)
+        decoder_dense = Dense(self.word_dim, activation='linear',name='dense_2')
         decoder_outputs = decoder_dense(decoder_outputs)
         # Define the model that will turn
         # `encoder_input_data` & `decoder_input_data` into `decoder_target_data`
@@ -191,28 +193,35 @@ class   DataManager:
 
         return model
     def construct_seq2seq_test(self,model,unit):
-        print(model.inputs)
-        print(model.outputs)
-        print(model.layers)
+        #print(model.inputs)
+        #print(model.outputs)
+        #print(model.layers)
         encoder_inputs = model.inputs[0] 
-        encoder_outputs, state_h, state_c = model.layers[2](encoder_inputs)
+        encoder_lstm= model.layers[1](encoder_inputs) 
+        encoder_outputs, state_h, state_c = model.layers[3](encoder_lstm)
         encoder_states = [state_h, state_c]
         encoder_model = Model(encoder_inputs,encoder_states)
 
-        decoder_inputs = Input(shape=(None, self.word_dim))
-        decoder_state_input_h = Input(shape=(unit,))
-        decoder_state_input_c = Input(shape=(unit,))
+        decoder_inputs = Input(shape=(None, self.word_dim),name='decoder_inputs')
+        decoder_lstm_input_h = Input(shape=(unit,),name='decoder_lstm_input_h')
+        decoder_lstm_input_c = Input(shape=(unit,),name='decoder_lstm_input_c')
+        decoder_state_input_h = Input(shape=(unit,),name='decoder_state_input_h')
+        decoder_state_input_c = Input(shape=(unit,),name='decoder_state_input_c')
+        decoder_lstm_inputs = [decoder_lstm_input_h, decoder_lstm_input_c]
         decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
-        decoder_outputs, state_h, state_c = model.layers[3](decoder_inputs, initial_state=decoder_states_inputs)
+        decoder_lstm ,lstm_h,lstm_c= model.layers[4](decoder_inputs, initial_state=decoder_lstm_inputs)
+        decoder_lstm_states = [lstm_h, lstm_c]
+        decoder_outputs, state_h, state_c = model.layers[5](decoder_lstm, initial_state=decoder_states_inputs)
         decoder_states = [state_h, state_c]
-        decoder_outputs = model.layers[4](decoder_outputs)
-        decoder_model = Model([decoder_inputs] + decoder_states_inputs,[decoder_outputs] + decoder_states)
+        decoder_outputs = model.layers[6](decoder_outputs)
+        decoder_outputs = model.layers[7](decoder_outputs)
+        decoder_model = Model([decoder_inputs] + decoder_lstm_inputs+decoder_states_inputs,[decoder_outputs] + decoder_lstm_states+decoder_states)
         return [encoder_model,decoder_model]
     def decode_seq(self,data_in,model,voc):
 	# Encode the input as state vectors.
         encoder_model=model[0]
         decoder_model=model[1]
-        states_value = encoder_model.predict(data_in)
+        states_value =states_lstm_value= encoder_model.predict(data_in)
 
         # Generate empty target sequence of length 1.
         # Populate the first character of target sequence with the start character.
@@ -223,8 +232,7 @@ class   DataManager:
         stop_condition = False
         decoded_sentence = []
         while not stop_condition:
-            output_tokens, h, c = decoder_model.predict(
-                [target_seq] + states_value)
+            output_tokens,lstm_h,lstm_c, h, c = decoder_model.predict([target_seq] + states_lstm_value+states_value)
 
             # Sample a token
             #print('output_tokens.shape: ',output_tokens)
@@ -237,13 +245,23 @@ class   DataManager:
                 stop_condition = True
             else:
                 decoded_sentence.append(voc.W2V[sampled_char].reshape((1,-1)))
+                print(sampled_char,end='')
 
             # Update the target sequence (of length 1).
             target_seq = voc.W2V[sampled_char].reshape((1,1,-1))
 
             # Update states
             states_value = [h, c]
+            states_lstm_value = [lstm_h, lstm_c]
+        print()
         return decoded_sentence
+    def cos_distance(self,y_true, y_pred):
+        def l2_normalize(x, axis):
+            norm = K.sqrt(K.sum(K.square(x), axis=axis, keepdims=True))
+            return K.sign(x) * K.maximum(K.abs(x), K.epsilon()) / K.maximum(norm, K.epsilon())
+        y_true = l2_normalize(y_true, axis=-1)
+        y_pred = l2_normalize(y_pred, axis=-1)
+        return K.mean(y_true * y_pred, axis=-1)
     def average(self,data):
         return np.mean(data,axis=0)
     def output(self,data):

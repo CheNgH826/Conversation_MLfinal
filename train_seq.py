@@ -20,7 +20,7 @@ assert jieba and np
 '''''''''''''''''''''       setting option                           '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 n_batch=1024
-n_epoch=30
+n_epoch=100
 max_word_len=14
 word_dim=300
 
