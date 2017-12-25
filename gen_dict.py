@@ -4,6 +4,7 @@ import constants
 import jieba
 import os
 
+jieba.dt.cache_file = 'jieba.cache.new'
 
 nb_vocab = constants.VOCAB_LIST_SIZE
 
