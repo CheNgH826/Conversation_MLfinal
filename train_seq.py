@@ -20,9 +20,10 @@ assert jieba and np
 '''''''''''''''''''''       setting option                           '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 n_batch=1024
-n_epoch=30
-max_word_len=13
+n_epoch=100
+max_word_len=14
 word_dim=300
+
 adam=keras.optimizers.Adam(clipnorm=0.0001)
 adamax=keras.optimizers.Adamax(clipnorm=0.0001)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -41,7 +42,7 @@ dm.read_train_data('data/training_data/2_train.txt','train2')
 dm.read_train_data('data/training_data/3_train.txt','train3')
 dm.read_train_data('data/training_data/4_train.txt','train4')
 dm.read_train_data('data/training_data/5_train.txt','train5')
-dm.read_test_data('data/testing_data.csv','test_question','test_option')
+#dm.read_test_data('data/testing_data.csv','test_question','test_option')
 print("\rreading data...finish")
 print(dm.data['train1'][:3])
 print(dm.data['train2'][:3])
@@ -49,24 +50,22 @@ print(dm.data['train3'][:3])
 print(dm.data['train4'][:3])
 print(dm.data['train5'][:3])
 
-print("construct data...",end='')
-dm.construct_data_LSTM('train1',voc,'data/train1.npy')
-dm.construct_data_LSTM('train2',voc,'data/train2.npy')
-dm.construct_data_LSTM('train3',voc,'data/train3.npy')
-dm.construct_data_LSTM('train4',voc,'data/train4.npy')
-dm.construct_data_LSTM('train5',voc,'data/train5.npy')
-dm.construct_data_LSTM('test_question',voc,'data/test_question.npy')
-dm.construct_data_LSTM('test_option',voc,'data/test_option.npy',multi_seq=True)
-print("\rconstruct data...finish")
+print("construct data...")
+dm.construct_data_seq2seq('train1',voc,'data/train1_seq.npy')
+dm.construct_data_seq2seq('train2',voc,'data/train2_seq.npy')
+dm.construct_data_seq2seq('train3',voc,'data/train3_seq.npy')
+dm.construct_data_seq2seq('train4',voc,'data/train4_seq.npy')
+dm.construct_data_seq2seq('train5',voc,'data/train5_seq.npy')
+#dm.construct_data_seq2seq('test_question',voc,'data/test_question_seq.npy')
+#dm.construct_data_seq2seq('test_option',voc,'data/test_option_seq.npy',multi_seq=True)
+print("construct data...finish")
 
-model=dm.construct_LSTM(256)
+model=dm.construct_seq2seq_train(1024)
 
-print(dm.data['test_option'].shape)
-print(dm.data['test_option'][0,1,:,:].shape)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''''''''''''''''''''       compile model                            '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-model.compile(optimizer=adam,loss={'main_output':'cosine_proximity'},metrics=['accuracy'])
+model.compile(optimizer=adam, loss='cosine_proximity',metrics=['accuracy'])
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''''''''''''''''''''       setting checkpoint                       '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -83,11 +82,19 @@ model.summary()
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''''''''''''''''''''       fit model                                '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-train_x=np.concatenate((dm.data['train1'][:-1],dm.data['train2'][:-1],dm.data['train3'][:-1],dm.data['train4'][:-1],dm.data['train5'][:-1]))
-train_y=np.concatenate((dm.data['train1'][1:],dm.data['train2'][1:],dm.data['train3'][1:],dm.data['train4'][1:],dm.data['train5'][1:]))
-print(train_x.shape)
-print(train_y.shape)
-model.fit({'sequence_in':train_x},{'main_output':train_y},epochs=n_epoch,batch_size=n_batch,shuffle=True,validation_split=0.05,callbacks=callbacks_list,verbose=1)
+encoder_data=np.concatenate((dm.data['train1'][:-1],dm.data['train2'][:-1],dm.data['train3'][:-1],dm.data['train4'][:-1],dm.data['train5'][:-1]))
+decoder_data=np.concatenate((dm.data['train1'][1:],dm.data['train2'][1:],dm.data['train3'][1:],dm.data['train4'][1:],dm.data['train5'][1:]))
+encoder_input_data=dm.wrape_encoder(encoder_data,voc)
+decoder_input_data=dm.wrape_decoder(decoder_data,voc,decode_in=True)
+decoder_target_data=dm.wrape_decoder(decoder_data,voc,decode_in=False)
+print('encoder_input_data.shape: ',encoder_input_data.shape)
+print('decoder_input_data.shape: ',decoder_input_data.shape)
+print('decoder_target_data.shape: ',decoder_target_data.shape)
+model.fit([encoder_input_data, decoder_input_data], decoder_target_data,
+          batch_size=n_batch,
+          epochs=n_epoch,
+          validation_split=0.1,
+          shuffle=True,callbacks=callbacks_list,verbose=1)
 '''
 '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -98,6 +105,8 @@ model.save('model.hdf5')
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''''''''''''''''''''       writing output                           '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''
 test_y=model.predict({'sequence_in':dm.data['test_question']},batch_size=n_batch, verbose=1)
 output=dm.output(test_y)
 dm.write(output,'./output.csv')
+'''
